@@ -1,3 +1,6 @@
+# Download NoteApp
+[Click Here to Download the Installer](https://github.com/moynull15-14141/NoteappMandN_holidays/releases/download/v1.0.0/NoteApp_Setup.exe)
+
 # Digital Diary - Production-Ready Flutter Application
 
 A fully-featured, cross-platform digital diary application built with Flutter, optimized for Windows Desktop but also compatible with Android, iOS, and Web platforms.
