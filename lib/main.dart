@@ -26,8 +26,9 @@ void main() async {
   await localDataSource.initializeBoxes();
 
   // Initialize Auto-Updater
-  String feedURL = 'https://raw.githubusercontent.com/moynull15-14141/NoteappMandN_holidays/main/appcast.xml';
-  
+  String feedURL =
+      'https://raw.githubusercontent.com/moynull15-14141/NoteappMandN_holidays/main/appcast.xml';
+
   try {
     await autoUpdater.setFeedURL(feedURL);
     await autoUpdater.checkForUpdates();
