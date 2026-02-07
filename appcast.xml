@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+    <channel>
+        <title>NoteApp Updates</title>
+        <item>
+            <title>v1.0.0</title>
+            <sparkle:releaseNotesLink>https://github.com/moynull15-14141/NoteappMandN_holidays/releases</sparkle:releaseNotesLink>
+            <enclosure url="https://github.com/moynull15-14141/NoteappMandN_holidays/releases/download/v1.0.0/NoteApp_Setup.exe" 
+                       sparkle:version="1.0.0" 
+                       type="application/octet-stream" />
+        </item>
+    </channel>
+</rss>
