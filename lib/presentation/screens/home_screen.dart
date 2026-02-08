@@ -138,7 +138,11 @@ class _AllEntriesView extends ConsumerWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Image.asset('assets/images/empty_state.png', height: 150),
+                Icon(
+                  Icons.note_outlined,
+                  size: 100,
+                  color: Colors.purple.shade300,
+                ),
                 const SizedBox(height: 16),
                 Text(
                   'No entries yet',
