@@ -9,6 +9,8 @@ import 'package:noteapp/presentation/providers/app_providers.dart';
 import 'package:noteapp/presentation/providers/auth_provider.dart';
 import 'package:noteapp/presentation/screens/authentication_screen.dart';
 import 'package:noteapp/presentation/screens/home_screen.dart';
+import 'package:noteapp/presentation/screens/invoice_screen.dart';
+import 'package:noteapp/admin_dashboard.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -65,6 +67,8 @@ class _MyAppState extends ConsumerState<MyApp> {
       routes: {
         '/home': (context) => const HomeScreen(),
         '/auth': (context) => const AuthenticationScreen(),
+        '/invoice': (context) => const InvoiceScreen(),
+        '/admin': (context) => const AdminDashboard(),
       },
     );
   }

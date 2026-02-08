@@ -8,6 +8,9 @@ import 'package:noteapp/presentation/screens/diary_entry_screen.dart';
 import 'package:noteapp/presentation/screens/entry_detail_screen.dart';
 import 'package:noteapp/presentation/screens/settings_screen.dart';
 import 'package:noteapp/presentation/screens/search_screen.dart';
+import 'package:noteapp/presentation/screens/invoice_screen.dart';
+import 'chat_screen_wrapper.dart';
+import 'package:noteapp/admin_dashboard.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -69,6 +72,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   selectedIcon: Icon(Icons.settings),
                   label: Text('Settings'),
                 ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.receipt_long),
+                  selectedIcon: Icon(Icons.receipt_long),
+                  label: Text('Invoice'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.chat),
+                  selectedIcon: Icon(Icons.chat),
+                  label: Text('Chat'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.admin_panel_settings),
+                  selectedIcon: Icon(Icons.admin_panel_settings),
+                  label: Text('Admin'),
+                ),
               ],
             ),
           // Main Content
@@ -91,6 +109,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   icon: Icon(Icons.settings),
                   label: 'Settings',
                 ),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.receipt_long),
+                  label: 'Invoice',
+                ),
+                BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chat'),
+                BottomNavigationBarItem(
+                  icon: Icon(Icons.admin_panel_settings),
+                  label: 'Admin',
+                ),
               ],
             )
           : null,
@@ -98,10 +125,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       floatingActionButton: _selectedNavIndex != 2
           ? FloatingActionButton(
               onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const DiaryEntryScreen()),
-                );
+                if (_selectedNavIndex == 2) {
+                  Navigator.pushNamed(context, '/invoice');
+                } else {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const DiaryEntryScreen()),
+                  );
+                }
               },
               backgroundColor: const Color.fromARGB(255, 18, 5, 129),
               child: const Icon(Icons.add, color: Colors.white),
@@ -118,6 +149,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         return const _FavoritesView();
       case 2:
         return const SettingsScreen();
+      case 3:
+        return const InvoiceScreen();
+      case 4:
+        return const ChatScreen();
+      case 5:
+        return const AdminDashboard();
       default:
         return const _AllEntriesView();
     }

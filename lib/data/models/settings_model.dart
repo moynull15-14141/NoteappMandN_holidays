@@ -20,6 +20,9 @@ class SettingsModel extends HiveObject {
   @HiveField(5)
   late String? securityAnswer;
 
+  @HiveField(6)
+  late String? userName; // LAN Chat unique user name
+
   SettingsModel({
     this.pinCode,
     this.isDarkTheme = false,
@@ -27,6 +30,7 @@ class SettingsModel extends HiveObject {
     this.lastAuthTime,
     this.securityQuestion,
     this.securityAnswer,
+    this.userName,
   });
 
   SettingsModel.empty();
@@ -38,6 +42,7 @@ class SettingsModel extends HiveObject {
     DateTime? lastAuthTime,
     String? securityQuestion,
     String? securityAnswer,
+    String? userName,
   }) {
     return SettingsModel(
       pinCode: pinCode ?? this.pinCode,
@@ -47,6 +52,7 @@ class SettingsModel extends HiveObject {
       lastAuthTime: lastAuthTime ?? this.lastAuthTime,
       securityQuestion: securityQuestion ?? this.securityQuestion,
       securityAnswer: securityAnswer ?? this.securityAnswer,
+      userName: userName ?? this.userName,
     );
   }
 }

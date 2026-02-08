@@ -115,6 +115,10 @@ class LocalDataSourceImpl implements LocalDataSource {
       );
       debugPrint('Settings box opened successfully');
 
+      // Open chat box for persistent chat data (username, etc)
+      await _retryWithBackoff(() => Hive.openBox('chat'));
+      debugPrint('Chat box opened successfully');
+
       _isInitialized = true;
       debugPrint('Hive initialization complete');
     } catch (e) {
