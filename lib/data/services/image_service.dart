@@ -39,7 +39,7 @@ class ImageService {
       if (e is ImageException) rethrow;
       throw ImageException(
         message: 'Failed to pick image: $e',
-        code: 'IMAGE_PICK_ERROR',
+        code: 'PICK_IMAGE_ERROR',
       );
     }
   }

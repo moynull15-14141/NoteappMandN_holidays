@@ -4,7 +4,8 @@ class PinInputDialog extends StatefulWidget {
   final String title;
   final String description;
   final String buttonText;
-  final Function(String) onSubmit;
+  final Function(String, String)
+  onSubmit; // Updated to accept current and new PINs
 
   const PinInputDialog({
     super.key,
@@ -19,18 +20,21 @@ class PinInputDialog extends StatefulWidget {
 }
 
 class _PinInputDialogState extends State<PinInputDialog> {
-  late TextEditingController _controller;
+  late TextEditingController _currentPinController;
+  late TextEditingController _newPinController;
   bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _controller = TextEditingController();
+    _currentPinController = TextEditingController();
+    _newPinController = TextEditingController();
   }
 
   @override
   void dispose() {
-    _controller.dispose();
+    _currentPinController.dispose();
+    _newPinController.dispose();
     super.dispose();
   }
 
@@ -48,12 +52,26 @@ class _PinInputDialogState extends State<PinInputDialog> {
           ),
           const SizedBox(height: 20),
           TextField(
-            controller: _controller,
+            controller: _currentPinController,
             obscureText: true,
             keyboardType: TextInputType.number,
             maxLength: 6,
             decoration: InputDecoration(
-              hintText: 'Enter PIN',
+              hintText: 'Enter Current PIN',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              counterText: '',
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _newPinController,
+            obscureText: true,
+            keyboardType: TextInputType.number,
+            maxLength: 6,
+            decoration: InputDecoration(
+              hintText: 'Enter New PIN',
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
               ),
@@ -71,19 +89,24 @@ class _PinInputDialogState extends State<PinInputDialog> {
           onPressed: _isLoading
               ? null
               : () async {
-                  if (_controller.text.isEmpty) {
+                  if (_currentPinController.text.isEmpty ||
+                      _newPinController.text.isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Please enter a PIN')),
+                      const SnackBar(
+                        content: Text('Please enter both current and new PINs'),
+                      ),
                     );
                     return;
                   }
 
                   setState(() => _isLoading = true);
-                  await widget.onSubmit(_controller.text);
+                  await widget.onSubmit(
+                    _currentPinController.text,
+                    _newPinController.text,
+                  );
                   setState(() => _isLoading = false);
 
                   if (mounted) {
-                    // ignore: use_build_context_synchronously
                     Navigator.of(context).pop();
                   }
                 },

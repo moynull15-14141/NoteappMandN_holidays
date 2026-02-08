@@ -25,7 +25,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Digital Diary'),
+        backgroundColor: const Color.fromARGB(255, 3, 59, 143),
+        title: const Text(
+          'Digital Diary',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
+        ),
+        titleTextStyle: const TextStyle(color: Colors.white),
         actions: [
           IconButton(
             onPressed: () {
@@ -74,6 +79,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ? BottomNavigationBar(
               currentIndex: _selectedNavIndex,
               onTap: (index) => setState(() => _selectedNavIndex = index),
+              selectedItemColor: Colors.purple,
+              unselectedItemColor: Colors.grey,
               items: const [
                 BottomNavigationBarItem(icon: Icon(Icons.home), label: 'All'),
                 BottomNavigationBarItem(
@@ -87,6 +94,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ],
             )
           : null,
+
       floatingActionButton: _selectedNavIndex != 2
           ? FloatingActionButton(
               onPressed: () {
@@ -95,7 +103,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   MaterialPageRoute(builder: (_) => const DiaryEntryScreen()),
                 );
               },
-              child: const Icon(Icons.add),
+              backgroundColor: const Color.fromARGB(255, 18, 5, 129),
+              child: const Icon(Icons.add, color: Colors.white),
             )
           : null,
     );
@@ -129,21 +138,18 @@ class _AllEntriesView extends ConsumerWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(
-                  Icons.note_outlined,
-                  size: 64,
-                  color: Colors.grey.shade400,
-                ),
+                Image.asset('assets/images/empty_state.png', height: 150),
                 const SizedBox(height: 16),
                 Text(
                   'No entries yet',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.headlineSmall?.copyWith(color: Colors.grey),
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    color: Colors.purple,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Create your first diary entry',
+                  'Start by creating your first diary entry!',
                   style: Theme.of(
                     context,
                   ).textTheme.bodyMedium?.copyWith(color: Colors.grey),
