@@ -14,11 +14,19 @@ class SettingsModel extends HiveObject {
   @HiveField(3)
   late DateTime? lastAuthTime;
 
+  @HiveField(4)
+  late String? securityQuestion;
+
+  @HiveField(5)
+  late String? securityAnswer;
+
   SettingsModel({
     this.pinCode,
     this.isDarkTheme = false,
     this.autoLockDurationMinutes = 15,
     this.lastAuthTime,
+    this.securityQuestion,
+    this.securityAnswer,
   });
 
   SettingsModel.empty();
@@ -28,6 +36,8 @@ class SettingsModel extends HiveObject {
     bool? isDarkTheme,
     int? autoLockDurationMinutes,
     DateTime? lastAuthTime,
+    String? securityQuestion,
+    String? securityAnswer,
   }) {
     return SettingsModel(
       pinCode: pinCode ?? this.pinCode,
@@ -35,6 +45,8 @@ class SettingsModel extends HiveObject {
       autoLockDurationMinutes:
           autoLockDurationMinutes ?? this.autoLockDurationMinutes,
       lastAuthTime: lastAuthTime ?? this.lastAuthTime,
+      securityQuestion: securityQuestion ?? this.securityQuestion,
+      securityAnswer: securityAnswer ?? this.securityAnswer,
     );
   }
 }

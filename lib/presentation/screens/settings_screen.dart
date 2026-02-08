@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:noteapp/core/constants/app_constants.dart';
+import 'package:noteapp/data/models/settings_model.dart';
 import 'package:noteapp/presentation/providers/auth_provider.dart';
 import 'package:noteapp/presentation/providers/app_providers.dart';
-import 'package:noteapp/presentation/widgets/pin_input_dialog.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -40,25 +40,41 @@ class SettingsScreen extends ConsumerWidget {
                 leading: const Icon(Icons.lock),
                 title: 'PIN Protection',
                 trailing: const Icon(Icons.chevron_right),
-                onTap: () {
-                  showDialog(
-                    context: context,
-                    builder: (context) => PinInputDialog(
-                      title: 'Set PIN',
-                      description: 'Set a 6-digit PIN to protect your diary',
-                      buttonText: 'Set PIN',
-                      onSubmit: (pin) async {
-                        await ref.read(authProvider.notifier).setupPin(pin);
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('PIN set successfully'),
-                            ),
-                          );
-                        }
-                      },
-                    ),
-                  );
+                onTap: () async {
+                  // Check if PIN is already set
+                  final settings = await ref.read(settingsProvider.future);
+
+                  if (settings?.pinCode != null &&
+                      settings!.pinCode!.isNotEmpty) {
+                    // PIN already exists, verify first
+                    if (context.mounted) {
+                      showDialog(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (_) => SecurityVerificationDialog(
+                          onVerified: () {
+                            if (context.mounted) {
+                              Navigator.pop(context);
+                              showDialog(
+                                context: context,
+                                barrierDismissible: false,
+                                builder: (_) => const PinSetupDialog(),
+                              );
+                            }
+                          },
+                        ),
+                      );
+                    }
+                  } else {
+                    // No PIN set yet, show setup dialog directly
+                    if (context.mounted) {
+                      showDialog(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (_) => const PinSetupDialog(),
+                      );
+                    }
+                  }
                 },
               ),
               _SettingsTile(
@@ -66,7 +82,7 @@ class SettingsScreen extends ConsumerWidget {
                 title: 'Lock Diary',
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () {
-                  ref.read(authProvider.notifier).lock();
+                  ref.read(authProvider.notifier).lock(context);
                 },
               ),
             ],
@@ -88,6 +104,549 @@ class SettingsScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+}
+
+class PinSetupDialog extends StatefulWidget {
+  const PinSetupDialog({super.key});
+
+  @override
+  State<PinSetupDialog> createState() => _PinSetupDialogState();
+}
+
+class _PinSetupDialogState extends State<PinSetupDialog> {
+  late final TextEditingController pinController;
+  late final TextEditingController confirmPinController;
+  late final TextEditingController questionController;
+  late final TextEditingController answerController;
+
+  @override
+  void initState() {
+    super.initState();
+    pinController = TextEditingController();
+    confirmPinController = TextEditingController();
+    questionController = TextEditingController();
+    answerController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    pinController.dispose();
+    confirmPinController.dispose();
+    questionController.dispose();
+    answerController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('PIN Setup'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Set your PIN and security question:',
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: pinController,
+              obscureText: true,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              decoration: InputDecoration(
+                labelText: 'PIN (6 digits)',
+                counterText: '',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: confirmPinController,
+              obscureText: true,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              decoration: InputDecoration(
+                labelText: 'Confirm PIN',
+                counterText: '',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Divider(),
+            const SizedBox(height: 8),
+            TextField(
+              controller: questionController,
+              decoration: InputDecoration(
+                labelText: 'Security Question',
+                hintText: 'e.g., Your birth date, favorite color?',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: answerController,
+              decoration: InputDecoration(
+                labelText: 'Answer',
+                hintText: 'e.g., 15/06, Blue',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () {
+            Navigator.pop(context);
+          },
+          child: const Text('Cancel'),
+        ),
+        Consumer(
+          builder: (context, ref, _) {
+            return ElevatedButton(
+              onPressed: () async {
+                // Validation
+                if (pinController.text.isEmpty ||
+                    confirmPinController.text.isEmpty) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('PIN cannot be empty')),
+                    );
+                  }
+                  return;
+                }
+
+                if (pinController.text.length != 6 ||
+                    confirmPinController.text.length != 6) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('PIN must be exactly 6 digits'),
+                      ),
+                    );
+                  }
+                  return;
+                }
+
+                if (pinController.text != confirmPinController.text) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('PINs do not match')),
+                    );
+                  }
+                  return;
+                }
+
+                if (questionController.text.isEmpty ||
+                    answerController.text.isEmpty) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Question and answer cannot be empty'),
+                      ),
+                    );
+                  }
+                  return;
+                }
+
+                // Setup PIN with security question
+                await ref
+                    .read(authProvider.notifier)
+                    .setupPinWithSecurityQuestion(
+                      pinController.text,
+                      questionController.text,
+                      answerController.text,
+                    );
+
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'PIN and security question set successfully!',
+                      ),
+                    ),
+                  );
+                }
+              },
+              child: const Text('Set'),
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class SecurityVerificationDialog extends ConsumerStatefulWidget {
+  final VoidCallback onVerified;
+
+  const SecurityVerificationDialog({super.key, required this.onVerified});
+
+  @override
+  ConsumerState<SecurityVerificationDialog> createState() =>
+      _SecurityVerificationDialogState();
+}
+
+class _SecurityVerificationDialogState
+    extends ConsumerState<SecurityVerificationDialog> {
+  late TextEditingController answerController;
+  bool isVerifying = false;
+  String? errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    answerController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    answerController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Verify Your Identity'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Answer your security question to proceed:',
+              style: TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 16),
+            FutureBuilder<SettingsModel?>(
+              future: ref.watch(settingsProvider.future),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                final settings = snapshot.data;
+                final question = settings?.securityQuestion ?? 'Unknown';
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: Theme.of(context).colorScheme.primary,
+                          width: 1.5,
+                        ),
+                      ),
+                      child: Text(
+                        question,
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    TextField(
+                      controller: answerController,
+                      decoration: InputDecoration(
+                        labelText: 'Your Answer',
+                        hintText: 'Enter your answer',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        errorText: errorMessage,
+                      ),
+                      onSubmitted: (_) => _verifyAnswer(context),
+                    ),
+                    if (errorMessage != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        errorMessage!,
+                        style: TextStyle(
+                          color: Colors.red.shade700,
+                          fontSize: 12,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextButton(
+                        onPressed: isVerifying
+                            ? null
+                            : () {
+                                Navigator.pop(context);
+                                showDialog(
+                                  context: context,
+                                  barrierDismissible: false,
+                                  builder: (_) => PinRecoveryDialog(
+                                    onVerified: () {
+                                      Navigator.pop(context);
+                                      widget.onVerified();
+                                    },
+                                  ),
+                                );
+                              },
+                        child: const Text('Forgot Answer? Use PIN instead'),
+                      ),
+                    ] else if (!isVerifying) ...[
+                      const SizedBox(height: 8),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          showDialog(
+                            context: context,
+                            barrierDismissible: false,
+                            builder: (_) => PinRecoveryDialog(
+                              onVerified: () {
+                                Navigator.pop(context);
+                                widget.onVerified();
+                              },
+                            ),
+                          );
+                        },
+                        child: const Text('Forgot Answer? Use PIN instead'),
+                      ),
+                    ],
+                  ],
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: isVerifying ? null : () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: isVerifying ? null : () => _verifyAnswer(context),
+          child: isVerifying
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Verify'),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _verifyAnswer(BuildContext context) async {
+    if (answerController.text.isEmpty) {
+      setState(() {
+        errorMessage = 'Please enter your answer';
+      });
+      return;
+    }
+
+    setState(() {
+      isVerifying = true;
+      errorMessage = null;
+    });
+
+    try {
+      // Add a small delay to ensure database is ready
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      final isCorrect = await ref
+          .read(authProvider.notifier)
+          .verifySecurityAnswer(answerController.text);
+
+      if (!context.mounted) return;
+
+      if (isCorrect) {
+        // Answer is correct, proceed with PIN setup
+        widget.onVerified();
+      } else {
+        setState(() {
+          errorMessage = 'Incorrect answer. Please try again.';
+          isVerifying = false;
+        });
+      }
+    } catch (e) {
+      final errorMsg = _getUserFriendlyError(e);
+      setState(() {
+        errorMessage = errorMsg;
+        isVerifying = false;
+      });
+    }
+  }
+
+  String _getUserFriendlyError(dynamic error) {
+    final errorStr = error.toString().toLowerCase();
+
+    if (errorStr.contains('lock')) {
+      return 'Database is busy. Please try again.';
+    } else if (errorStr.contains('storage') || errorStr.contains('failed')) {
+      return 'Failed to access security data. Try again.';
+    } else {
+      return 'Verification failed. Please try again.';
+    }
+  }
+}
+
+class PinRecoveryDialog extends ConsumerStatefulWidget {
+  final VoidCallback onVerified;
+
+  const PinRecoveryDialog({super.key, required this.onVerified});
+
+  @override
+  ConsumerState<PinRecoveryDialog> createState() => _PinRecoveryDialogState();
+}
+
+class _PinRecoveryDialogState extends ConsumerState<PinRecoveryDialog> {
+  late TextEditingController pinController;
+  bool isVerifying = false;
+  String? errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    pinController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    pinController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Verify With PIN'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Enter your PIN to proceed:',
+              style: TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: pinController,
+              obscureText: true,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              decoration: InputDecoration(
+                labelText: 'PIN (6 digits)',
+                hintText: 'Enter your 6-digit PIN',
+                counterText: '',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                errorText: errorMessage,
+              ),
+              onSubmitted: (_) => _verifyPin(context),
+            ),
+            if (errorMessage != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                errorMessage!,
+                style: TextStyle(color: Colors.red.shade700, fontSize: 12),
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: isVerifying ? null : () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: isVerifying ? null : () => _verifyPin(context),
+          child: isVerifying
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Verify PIN'),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _verifyPin(BuildContext context) async {
+    if (pinController.text.isEmpty) {
+      setState(() {
+        errorMessage = 'Please enter your PIN';
+      });
+      return;
+    }
+
+    if (pinController.text.length != 6) {
+      setState(() {
+        errorMessage = 'PIN must be exactly 6 digits';
+      });
+      return;
+    }
+
+    setState(() {
+      isVerifying = true;
+      errorMessage = null;
+    });
+
+    try {
+      // Add a small delay to ensure database is ready
+      await Future.delayed(const Duration(milliseconds: 100));
+
+      final isAuthenticated = await ref
+          .read(authProvider.notifier)
+          .authenticate(pinController.text);
+
+      if (!context.mounted) return;
+
+      if (isAuthenticated) {
+        // PIN is correct, proceed with PIN setup
+        widget.onVerified();
+      } else {
+        setState(() {
+          errorMessage = 'Incorrect PIN. Please try again.';
+          isVerifying = false;
+        });
+      }
+    } catch (e) {
+      final errorMsg = _getUserFriendlyError(e);
+      setState(() {
+        errorMessage = errorMsg;
+        isVerifying = false;
+      });
+    }
+  }
+
+  String _getUserFriendlyError(dynamic error) {
+    final errorStr = error.toString().toLowerCase();
+
+    if (errorStr.contains('lock')) {
+      return 'Database is busy. Please try again.';
+    } else if (errorStr.contains('storage') || errorStr.contains('failed')) {
+      return 'Failed to verify PIN. Try again.';
+    } else {
+      return 'Verification failed. Please try again.';
+    }
   }
 }
 

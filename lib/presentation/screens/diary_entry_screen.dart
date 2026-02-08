@@ -8,6 +8,8 @@ import 'package:noteapp/presentation/providers/diary_providers.dart';
 import 'package:noteapp/presentation/widgets/mood_selector.dart';
 import 'package:noteapp/presentation/widgets/image_grid_view.dart';
 import 'package:uuid/uuid.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 
 class DiaryEntryScreen extends ConsumerStatefulWidget {
   final String? entryId;
@@ -27,6 +29,7 @@ class _DiaryEntryScreenState extends ConsumerState<DiaryEntryScreen> {
   String _selectedMood = '😊';
   List<String> _imagePaths = [];
   bool _isLoading = false;
+  File? _videoFile;
 
   @override
   void initState() {
@@ -177,190 +180,251 @@ class _DiaryEntryScreenState extends ConsumerState<DiaryEntryScreen> {
     }
   }
 
+  Future<void> _pickVideo() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickVideo(source: ImageSource.gallery);
+
+    if (pickedFile != null) {
+      final videoFile = File(pickedFile.path);
+      // Validate video size (2 GB limit)
+      final videoSize = await videoFile.length();
+      if (videoSize <= 2 * 1024 * 1024 * 1024) {
+        setState(() {
+          _videoFile = videoFile;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Video selected: ${videoFile.path}')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Video size exceeds 2 GB limit.')),
+        );
+      }
+    }
+  }
+
+  Future<void> _openVideo() async {
+    if (_videoFile != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Video will be saved with your diary entry')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final isMobile = MediaQuery.of(context).size.width < 600;
-
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.entryId != null ? 'Edit Entry' : 'New Entry'),
         actions: [
-          IconButton(
-            onPressed: _isLoading ? null : _saveEntry,
-            icon: const Icon(Icons.check),
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: TextButton(
+              onPressed: _isLoading ? null : () => Navigator.pop(context),
+              child: Text(
+                'Cancel',
+                style: TextStyle(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white
+                      : Theme.of(context).colorScheme.primary,
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.transparent
+                    : Theme.of(context).colorScheme.primary,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              onPressed: _isLoading ? null : _saveEntry,
+              child: Text(
+                'Save',
+                style: TextStyle(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white
+                      : Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
           ),
         ],
       ),
       body: SingleChildScrollView(
-        padding: EdgeInsets.all(isMobile ? 16 : 24),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 800),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Title
-              TextField(
-                controller: _titleController,
-                decoration: InputDecoration(
-                  hintText: 'Title',
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.zero,
-                  isDense: true,
-                ),
-                style: Theme.of(context).textTheme.headlineMedium,
-                maxLines: 1,
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Title Input Field
+            TextField(
+              controller: _titleController,
+              decoration: const InputDecoration(
+                labelText: 'Give your entry a title...',
+                border: OutlineInputBorder(),
               ),
-              const SizedBox(height: 8),
-              Text(
-                DateTimeHelper.formatDate(_selectedDate),
-                style: Theme.of(context).textTheme.labelSmall,
-              ),
-              const SizedBox(height: 24),
+            ),
+            const SizedBox(height: 16),
 
-              // Date & Time
-              Row(
-                children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () async {
-                        final date = await showDatePicker(
-                          context: context,
-                          initialDate: _selectedDate,
-                          firstDate: DateTime(2000),
-                          lastDate: DateTime.now(),
-                        );
-                        if (date != null) {
-                          setState(() => _selectedDate = date);
-                        }
-                      },
-                      child: Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Date',
-                                style: Theme.of(context).textTheme.labelSmall,
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                DateTimeHelper.formatDate(_selectedDate),
-                                style: Theme.of(context).textTheme.bodyMedium,
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
+            // Date and Time Display
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  DateTimeHelper.formatDate(_selectedDate),
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                Text(
+                  _selectedTime.format(context),
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Mood Selector
+            Text(
+              'How are you feeling today?',
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
+            const SizedBox(height: 8),
+            MoodSelector(
+              selectedMood: _selectedMood,
+              onMoodSelected: (mood) {
+                setState(() => _selectedMood = mood);
+              },
+            ),
+            const SizedBox(height: 16),
+
+            // Text Area for Thoughts
+            TextField(
+              controller: _bodyController,
+              maxLines: 5,
+              decoration: const InputDecoration(
+                labelText: 'Write your thoughts, memories or reflections...',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Tags Input
+            TextField(
+              controller: _tagsController,
+              decoration: const InputDecoration(
+                labelText: 'Add tags (comma separated)',
+                border: OutlineInputBorder(),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Photo Upload Section
+            GestureDetector(
+              onTap: _addImage,
+              child: Container(
+                width: double.infinity,
+                height: 150,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.primary,
+                    width: 2,
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () async {
-                        final time = await showTimePicker(
-                          context: context,
-                          initialTime: _selectedTime,
-                        );
-                        if (time != null) {
-                          setState(() => _selectedTime = time);
-                        }
-                      },
-                      child: Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Time',
-                                style: Theme.of(context).textTheme.labelSmall,
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                DateTimeHelper.formatTime(
-                                  DateTime(
-                                    2000,
-                                    1,
-                                    1,
-                                    _selectedTime.hour,
-                                    _selectedTime.minute,
-                                  ),
-                                ),
-                                style: Theme.of(context).textTheme.bodyMedium,
-                              ),
-                            ],
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.primary.withOpacity(0.05),
+                ),
+                alignment: Alignment.center,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.cloud_upload_outlined,
+                      size: 40,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Click to add photos',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.primary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Video Upload Section
+            ElevatedButton.icon(
+              onPressed: _pickVideo,
+              icon: const Icon(Icons.video_library),
+              label: const Text('Upload Video'),
+            ),
+            if (_videoFile != null)
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 12),
+                  Text(
+                    'Video Selected:',
+                    style: Theme.of(context).textTheme.bodyLarge,
+                  ),
+                  const SizedBox(height: 8),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _videoFile!.path.split('/').last,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(fontWeight: FontWeight.w500),
+                        ),
+                        const SizedBox(height: 8),
+                        ElevatedButton.icon(
+                          onPressed: _openVideo,
+                          icon: const Icon(Icons.play_circle_fill, size: 20),
+                          label: const Text('Open Video'),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 8,
+                            ),
                           ),
                         ),
-                      ),
+                      ],
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 24),
+            const SizedBox(height: 16),
 
-              // Mood Selector
-              MoodSelector(
-                selectedMood: _selectedMood,
-                onMoodSelected: (mood) {
-                  setState(() => _selectedMood = mood);
+            // Display Selected Images
+            if (_imagePaths.isNotEmpty)
+              ImageGridView(
+                imagePaths: _imagePaths,
+                onRemove: (path) {
+                  setState(() => _imagePaths.remove(path));
                 },
               ),
-              const SizedBox(height: 24),
-
-              // Body
-              TextField(
-                controller: _bodyController,
-                decoration: InputDecoration(
-                  hintText: 'Write your thoughts...',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  contentPadding: const EdgeInsets.all(12),
-                ),
-                minLines: 10,
-                maxLines: null,
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
-              const SizedBox(height: 24),
-
-              // Tags
-              TextField(
-                controller: _tagsController,
-                decoration: InputDecoration(
-                  hintText: 'Add tags (comma separated)',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Images
-              if (_imagePaths.isNotEmpty)
-                ImageGridView(
-                  imagePaths: _imagePaths,
-                  isEditable: true,
-                  onRemove: (index) {
-                    setState(() {
-                      _imagePaths.removeAt(index);
-                    });
-                  },
-                ),
-              if (_imagePaths.isNotEmpty) const SizedBox(height: 12),
-
-              // Add Image Button
-              OutlinedButton.icon(
-                onPressed: _addImage,
-                icon: const Icon(Icons.image),
-                label: const Text('Add Image'),
-              ),
-            ],
-          ),
+          ],
         ),
       ),
     );

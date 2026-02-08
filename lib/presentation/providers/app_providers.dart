@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:noteapp/data/datasources/local_datasource.dart';
 import 'package:noteapp/data/models/settings_model.dart';
 import 'package:noteapp/data/repositories/repositories.dart';
+import 'package:noteapp/data/services/update_service.dart';
 
 // Hive & DataSources
 final localDataSourceProvider = Provider<LocalDataSource>((ref) {
@@ -53,5 +54,16 @@ final isAuthenticatedProvider = StateProvider<bool>((ref) {
 });
 
 final lastAuthTimeProvider = StateProvider<DateTime?>((ref) {
+  return null;
+});
+
+// Update Check Provider (runs background update check)
+final updateCheckProvider = FutureProvider<UpdateInfo?>((ref) async {
+  const currentVersion = '1.0.0';
+  return await UpdateService.checkForUpdates(currentVersion: currentVersion);
+});
+
+// Update notification state (when user is notified of available update)
+final updateAvailableProvider = StateProvider<UpdateInfo?>((ref) {
   return null;
 });

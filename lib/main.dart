@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:auto_updater/auto_updater.dart';
 import 'package:noteapp/core/config/app_themes.dart';
 import 'package:noteapp/data/datasources/local_datasource.dart';
 import 'package:noteapp/data/models/adapters/diary_entry_adapter.dart';
@@ -14,9 +13,6 @@ import 'package:noteapp/presentation/screens/home_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Hive
-  await Hive.initFlutter();
-
   // Register Hive adapters
   Hive.registerAdapter(DiaryEntryModelAdapter());
   Hive.registerAdapter(SettingsModelAdapter());
@@ -24,18 +20,6 @@ void main() async {
   // Initialize Database
   final localDataSource = LocalDataSourceImpl();
   await localDataSource.initializeBoxes();
-
-  // Initialize Auto-Updater
-  String feedURL =
-      'https://raw.githubusercontent.com/moynull15-14141/NoteappMandN_holidays/main/appcast.xml';
-
-  try {
-    await autoUpdater.setFeedURL(feedURL);
-    await autoUpdater.checkForUpdates();
-    await autoUpdater.setScheduledCheckInterval(3600); // Checks every hour
-  } catch (e) {
-    // Auto-updater errors won't crash the app
-  }
 
   // Create a ProviderContainer override for the datasource
   final container = ProviderContainer(
@@ -78,6 +62,10 @@ class _MyAppState extends ConsumerState<MyApp> {
       home: authState.isLocked
           ? const AuthenticationScreen()
           : const HomeScreen(),
+      routes: {
+        '/home': (context) => const HomeScreen(),
+        '/auth': (context) => const AuthenticationScreen(),
+      },
     );
   }
 }

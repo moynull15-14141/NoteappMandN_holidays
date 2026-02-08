@@ -253,6 +253,7 @@ class _EntryCard extends ConsumerWidget {
             children: [
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.max,
                 children: [
                   Expanded(
                     child: Column(
@@ -272,29 +273,36 @@ class _EntryCard extends ConsumerWidget {
                       ],
                     ),
                   ),
-                  Column(
-                    children: [
-                      Text(entry.mood, style: const TextStyle(fontSize: 24)),
-                      const SizedBox(height: 8),
-                      IconButton(
-                        icon: Icon(
-                          entry.isFavorite
-                              ? Icons.favorite
-                              : Icons.favorite_outline,
-                          color: entry.isFavorite ? Colors.red : null,
+                  SizedBox(
+                    width: 88,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Text(entry.mood, style: const TextStyle(fontSize: 24)),
+                        const SizedBox(height: 8),
+                        IconButton(
+                          icon: Icon(
+                            entry.isFavorite
+                                ? Icons.favorite
+                                : Icons.favorite_outline,
+                            color: entry.isFavorite ? Colors.red : null,
+                          ),
+                          onPressed: () async {
+                            final repository = ref.read(
+                              diaryRepositoryProvider,
+                            );
+                            await repository.updateDiaryEntry(
+                              entry.copyWith(isFavorite: !entry.isFavorite),
+                            );
+                            ref.invalidate(diaryEntriesProvider);
+                            ref.invalidate(favoritesProvider);
+                          },
+                          constraints: const BoxConstraints(),
+                          padding: EdgeInsets.zero,
                         ),
-                        onPressed: () async {
-                          final repository = ref.read(diaryRepositoryProvider);
-                          await repository.updateDiaryEntry(
-                            entry.copyWith(isFavorite: !entry.isFavorite),
-                          );
-                          ref.invalidate(diaryEntriesProvider);
-                          ref.invalidate(favoritesProvider);
-                        },
-                        constraints: const BoxConstraints(),
-                        padding: EdgeInsets.zero,
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ],
               ),
