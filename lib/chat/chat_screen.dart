@@ -106,7 +106,7 @@ class _ChatScreenState extends State<ChatScreen> {
     };
   }
 
-  /// Initialize connection: discover server, then connect
+  /// Initialize connection: discover server or use manual settings
   void _initializeConnection() async {
     try {
       // Discover server
@@ -115,7 +115,39 @@ class _ChatScreenState extends State<ChatScreen> {
         _errorMessage = null;
       });
 
-      final server = await LANDiscovery.discover();
+      // Check if manual server settings are configured
+      DiscoveredServer? server;
+
+      try {
+        final settingsBox = Hive.box<dynamic>('settings');
+        final settingsModel = settingsBox.get('settings');
+
+        if (settingsModel != null) {
+          // settingsModel is a SettingsModel object with properties
+          final serverAddress = settingsModel.lanChatServerAddress;
+          final serverPort = settingsModel.lanChatServerPort ?? 4000;
+
+          if (serverAddress != null && serverAddress.toString().isNotEmpty) {
+            // Use manual settings
+            print(
+              '[ChatScreen] Using manual server settings: $serverAddress:$serverPort',
+            );
+            server = DiscoveredServer(
+              host: serverAddress.toString(),
+              port: int.parse(serverPort.toString()),
+              name: 'Manual Configuration',
+            );
+          }
+        }
+      } catch (e) {
+        print('[ChatScreen] Error reading manual settings: $e');
+      }
+
+      // If no manual settings, try automatic discovery
+      if (server == null) {
+        print('[ChatScreen] Attempting automatic server discovery...');
+        server = await LANDiscovery.discover();
+      }
 
       if (!mounted) return;
 
@@ -123,7 +155,7 @@ class _ChatScreenState extends State<ChatScreen> {
         setState(() {
           _isLoading = false;
           _errorMessage =
-              'No LAN chat server found. Ensure server is running on same Wi-Fi.';
+              'No LAN chat server found. Try configuring it manually in Settings > LAN Chat.';
         });
         _showSnackbar(_errorMessage!, isError: true);
         return;

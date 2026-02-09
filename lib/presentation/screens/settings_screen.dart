@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+// import 'package:hive_flutter/hive_flutter.dart';
 import 'package:noteapp/core/constants/app_constants.dart';
+import 'package:noteapp/core/services/update_service.dart';
 import 'package:noteapp/data/models/settings_model.dart';
 import 'package:noteapp/presentation/providers/auth_provider.dart';
 import 'package:noteapp/presentation/providers/app_providers.dart';
@@ -89,7 +91,7 @@ class SettingsScreen extends ConsumerWidget {
           ),
           const Divider(height: 32),
           _SettingSection(
-            title: 'About',
+            title: 'About & Updates',
             children: [
               _SettingsTile(
                 leading: const Icon(Icons.info),
@@ -98,6 +100,26 @@ class SettingsScreen extends ConsumerWidget {
                   AppConstants.appVersion,
                   style: TextStyle(fontSize: 12),
                 ),
+              ),
+              _SettingsTile(
+                leading: const Icon(Icons.system_update),
+                title: 'Check for Updates',
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  showDialog(
+                    context: context,
+                    barrierDismissible: false,
+                    builder: (_) => const _UpdateCheckDialog(),
+                  );
+                },
+              ),
+              _SettingsTile(
+                leading: const Icon(Icons.open_in_new),
+                title: 'GitHub Releases',
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  UpdateService.openGitHubReleases();
+                },
               ),
             ],
           ),
@@ -697,6 +719,193 @@ class _SettingsTile extends StatelessWidget {
       trailing: trailing,
       onTap: onTap,
       dense: true,
+    );
+  }
+}
+
+/// Dialog for checking app updates
+class _UpdateCheckDialog extends StatefulWidget {
+  const _UpdateCheckDialog();
+
+  @override
+  State<_UpdateCheckDialog> createState() => _UpdateCheckDialogState();
+}
+
+class _UpdateCheckDialogState extends State<_UpdateCheckDialog> {
+  bool _isChecking = true;
+  Map<String, dynamic>? _updateInfo;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkForUpdates();
+  }
+
+  void _checkForUpdates() async {
+    try {
+      final info = await UpdateService.checkForUpdates();
+
+      if (!mounted) return;
+
+      setState(() {
+        _isChecking = false;
+        _updateInfo = info;
+        if (info == null) {
+          _errorMessage =
+              'Unable to check for updates. Please check your internet connection.';
+        }
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isChecking = false;
+        _errorMessage = 'Error checking for updates: $e';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isChecking) {
+      return AlertDialog(
+        title: const Text('Checking for Updates'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            const Text('Please wait...'),
+          ],
+        ),
+      );
+    }
+
+    if (_errorMessage != null) {
+      return AlertDialog(
+        title: const Text('Update Check Failed'),
+        content: Text(_errorMessage!),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              setState(() {
+                _isChecking = true;
+                _errorMessage = null;
+              });
+              _checkForUpdates();
+            },
+            child: const Text('Retry'),
+          ),
+        ],
+      );
+    }
+
+    if (_updateInfo == null) {
+      return AlertDialog(
+        title: const Text('Update Check'),
+        content: const Text('No update information available.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      );
+    }
+
+    final hasUpdate = _updateInfo!['hasUpdate'] as bool? ?? false;
+    final currentVersion =
+        _updateInfo!['currentVersion'] as String? ?? 'Unknown';
+    final latestVersion = _updateInfo!['latestVersion'] as String? ?? 'Unknown';
+    final changelog =
+        _updateInfo!['changelog'] as String? ?? 'No changelog available';
+
+    if (!hasUpdate) {
+      return AlertDialog(
+        title: const Text('✅ App is Up to Date'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Current version: $currentVersion'),
+            const SizedBox(height: 8),
+            const Text('You are running the latest version!'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      );
+    }
+
+    return AlertDialog(
+      title: const Text('🎉 Update Available!'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Current version: $currentVersion',
+              style: const TextStyle(fontSize: 13, color: Colors.grey),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Latest version: $latestVersion',
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Colors.green,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'What\'s new:',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              constraints: const BoxConstraints(maxHeight: 150),
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: SingleChildScrollView(
+                child: Text(changelog, style: const TextStyle(fontSize: 12)),
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Later'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            UpdateService.openGitHubReleases();
+            Navigator.pop(context);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Opening GitHub releases page. Download the latest exe file.',
+                ),
+                duration: Duration(seconds: 4),
+              ),
+            );
+          },
+          child: const Text('Download Now'),
+        ),
+      ],
     );
   }
 }

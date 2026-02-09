@@ -20,11 +20,28 @@ class ServerLauncher {
   bool get isRunning => _isRunning;
   String? get lastError => _lastError;
 
+  /// Check if server is actually running (by connecting to health endpoint)
+  Future<bool> checkServerHealth() async {
+    try {
+      final socket = await Socket.connect(
+        '127.0.0.1',
+        4000,
+        timeout: const Duration(seconds: 1),
+      );
+      socket.close();
+      _isRunning = true;
+      return true;
+    } catch (e) {
+      _isRunning = false;
+      return false;
+    }
+  }
+
   /// Starts the Node.js chat server
   /// Returns true if started successfully, false otherwise
   Future<bool> startServer() async {
     try {
-      if (_isRunning) {
+      if (_isRunning || await checkServerHealth()) {
         _lastError = 'Server is already running';
         return false;
       }
@@ -33,7 +50,14 @@ class ServerLauncher {
       final serverDir = _getServerDirectory();
       if (serverDir == null) {
         _lastError =
-            'Server files not found. Make sure /server directory exists.';
+            'Server files not found.\n\n'
+            'Make sure server folder is in the same directory as the app.\n'
+            'Expected structure:\n'
+            '  noteapp.exe\n'
+            '  server/\n'
+            '    index.js\n'
+            '    node_modules/\n\n'
+            'If you are using the portable package, extract it completely.';
         return false;
       }
 
@@ -41,7 +65,9 @@ class ServerLauncher {
       final nodePath = _getNodePath();
       if (nodePath == null) {
         _lastError =
-            'Node.js is not installed. Please install from https://nodejs.org/';
+            'Node.js is not installed.\n\n'
+            'Please install Node.js from: https://nodejs.org/\n'
+            'Version 16 or higher recommended.';
         return false;
       }
 
@@ -49,7 +75,10 @@ class ServerLauncher {
       final nodeModulesDir = Directory('$serverDir\\node_modules');
       if (!nodeModulesDir.existsSync()) {
         _lastError =
-            'Dependencies not installed. Run "npm install" in /server directory first.';
+            'Server dependencies not installed.\n\n'
+            'Run this in PowerShell from the server folder:\n'
+            'npm install\n\n'
+            'Then try again.';
         return false;
       }
 
@@ -60,7 +89,7 @@ class ServerLauncher {
         serverDir,
       );
       if (batchFile == null) {
-        _lastError = 'Failed to create batch file for server';
+        _lastError = 'Failed to create server launcher batch file';
         return false;
       }
 
@@ -83,13 +112,20 @@ class ServerLauncher {
       // Wait for server to fully start and bind to port
       await Future.delayed(const Duration(seconds: 2));
 
-      _isRunning = true;
-      _lastError = null;
-
-      debugPrint(
-        '[Server] Started successfully on port 4000 (Detached Process PID: $_serverPid)',
-      );
-      return true;
+      // Verify server is actually running
+      if (await checkServerHealth()) {
+        _isRunning = true;
+        _lastError = null;
+        debugPrint(
+          '[Server] Started successfully on port 4000 (Detached Process PID: $_serverPid)',
+        );
+        return true;
+      } else {
+        _isRunning = false;
+        _lastError =
+            'Server process started but failed to respond on port 4000';
+        return false;
+      }
     } catch (e) {
       _isRunning = false;
       _lastError = 'Error starting server: $e';
@@ -102,13 +138,8 @@ class ServerLauncher {
   /// Returns true if stopped successfully, false otherwise
   Future<bool> stopServer() async {
     try {
-      if (!_isRunning) {
-        _lastError = 'Server is not running';
-        return false;
-      }
-
       // Kill the Node.js process running on port 4000
-      // Since we're running a detached process, we kill by process name
+      // Even if app doesn't think it's running, kill the process if it exists
       try {
         final result = await Process.run('taskkill', ['/IM', 'node.exe', '/F']);
 
@@ -120,6 +151,15 @@ class ServerLauncher {
         debugPrint(
           '[Server] Stopped successfully (exit code: ${result.exitCode})',
         );
+
+        // Verify server is actually stopped
+        await Future.delayed(const Duration(milliseconds: 500));
+        final stillRunning = await checkServerHealth();
+        if (stillRunning) {
+          _lastError = 'Server still running after stop command';
+          return false;
+        }
+
         return true;
       } catch (e) {
         _lastError = 'Error stopping server: $e';
@@ -132,24 +172,50 @@ class ServerLauncher {
     }
   }
 
-  /// Gets the server directory path
+  /// Gets the server directory path - checks multiple locations
   static String? _getServerDirectory() {
     try {
-      // Get current working directory
-      final currentDir = Directory.current;
-
-      // Try to find /server directory
-      final serverDir = Directory('${currentDir.path}\\server');
-      if (serverDir.existsSync()) {
+      // Priority 1: Direct ./server (development mode - running from project root)
+      var serverDir = Directory('server');
+      if (serverDir.existsSync() && File('server\\index.js').existsSync()) {
+        debugPrint('[Server] Found at: ${serverDir.path}');
         return serverDir.path;
       }
 
-      // Try parent directory (in case app is running from subdirectory)
-      final parentServerDir = Directory('${currentDir.parent.path}\\server');
-      if (parentServerDir.existsSync()) {
-        return parentServerDir.path;
+      // Priority 2: ../server (if running from subdirectory like build/)
+      serverDir = Directory('..\\server');
+      if (serverDir.existsSync() && File('..\\server\\index.js').existsSync()) {
+        final fullPath = Directory.current.parent.path + '\\server';
+        debugPrint('[Server] Found at: $fullPath');
+        return fullPath;
       }
 
+      // Priority 3: Get executable directory from Platform (portable package)
+      try {
+        final exePath = Platform.resolvedExecutable;
+        final exeDir = File(exePath).parent.path;
+        serverDir = Directory('$exeDir\\server');
+        if (serverDir.existsSync() &&
+            File('$exeDir\\server\\index.js').existsSync()) {
+          debugPrint(
+            '[Server] Found at: ${serverDir.path} (from exe location)',
+          );
+          return serverDir.path;
+        }
+      } catch (e) {
+        debugPrint('[Server] Error checking exe location: $e');
+      }
+
+      // Priority 4: One level up from current directory
+      final parentPath = Directory.current.parent.path;
+      serverDir = Directory('$parentPath\\server');
+      if (serverDir.existsSync() &&
+          File('$parentPath\\server\\index.js').existsSync()) {
+        debugPrint('[Server] Found at: ${serverDir.path}');
+        return serverDir.path;
+      }
+
+      debugPrint('[Server] Not found in any location');
       return null;
     } catch (e) {
       debugPrint('Error getting server directory: $e');

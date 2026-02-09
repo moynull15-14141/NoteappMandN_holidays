@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'dart:async';
+import 'dart:io';
 import '../chat/lan_discovery.dart';
 import '../chat/server_launcher.dart';
 
@@ -24,12 +25,17 @@ class _AdminDashboardState extends State<AdminDashboard>
   String _lastUpdate = '';
   bool _isCheckingServer = false;
   bool _isServerRunning = false;
+  bool _isDevelopmentMode = false; // Check if server files are available
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _serverLauncher = ServerLauncher();
+
+    // Detect if we're in development mode (server files available)
+    _checkDevelopmentMode();
+
     _checkServerStatus();
     _discoverServer();
 
@@ -39,6 +45,20 @@ class _AdminDashboardState extends State<AdminDashboard>
         _discoverServer();
       }
     });
+  }
+
+  /// Check if server files are available (development mode)
+  void _checkDevelopmentMode() {
+    try {
+      final serverFile = File('server/index.js');
+      setState(() {
+        _isDevelopmentMode = serverFile.existsSync();
+      });
+    } catch (e) {
+      setState(() {
+        _isDevelopmentMode = false;
+      });
+    }
   }
 
   @override
@@ -56,11 +76,23 @@ class _AdminDashboardState extends State<AdminDashboard>
     super.dispose();
   }
 
-  void _checkServerStatus() {
+  void _checkServerStatus() async {
     if (!mounted) return;
-    setState(() {
-      _isServerRunning = _serverLauncher.isRunning;
-    });
+    try {
+      // Check if server is actually running on port 4000
+      final isHealthy = await _serverLauncher.checkServerHealth();
+      if (mounted) {
+        setState(() {
+          _isServerRunning = isHealthy;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isServerRunning = false;
+        });
+      }
+    }
   }
 
   void _discoverServer() async {
@@ -397,18 +429,96 @@ class _AdminDashboardState extends State<AdminDashboard>
   Widget _buildQuickActionsSection() {
     return Column(
       children: [
-        // Server Control Buttons
+        // Mode-specific Info Banner
+        if (!_isDevelopmentMode)
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.green[50],
+              border: Border.all(color: Colors.green[300]!, width: 1.5),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info, color: Colors.green[700], size: 20),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '✓ Production Mode',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green[900],
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Click "Start Server" to launch the server automatically.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.green[800],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          )
+        else
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.blue[50],
+              border: Border.all(color: Colors.blue[300]!, width: 1.5),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info, color: Colors.blue[700], size: 20),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '✓ Development Mode',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blue[900],
+                          fontSize: 13,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'You can start/stop the server from here.',
+                        style: TextStyle(fontSize: 12, color: Colors.blue[800]),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        const SizedBox(height: 16),
+        // Server Control Buttons (enabled in both development and production mode)
         Row(
           children: [
             Expanded(
               child: ElevatedButton.icon(
-                onPressed: _isServerRunning || _isCheckingServer
+                onPressed: (_isServerRunning || _isCheckingServer)
                     ? null
                     : _startServer,
                 icon: const Icon(Icons.play_arrow),
                 label: const Text('Start Server'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.green[700],
+                  backgroundColor: Colors.green[600],
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: Colors.grey[400],
+                  disabledForegroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
               ),
@@ -416,13 +526,16 @@ class _AdminDashboardState extends State<AdminDashboard>
             const SizedBox(width: 12),
             Expanded(
               child: ElevatedButton.icon(
-                onPressed: !_isServerRunning || _isCheckingServer
+                onPressed: (!_isServerRunning || _isCheckingServer)
                     ? null
                     : _stopServer,
                 icon: const Icon(Icons.stop),
                 label: const Text('Stop Server'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.red[700],
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: Colors.grey[400],
+                  disabledForegroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 12),
                 ),
               ),

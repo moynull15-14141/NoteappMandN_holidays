@@ -23,6 +23,12 @@ class SettingsModel extends HiveObject {
   @HiveField(6)
   late String? userName; // LAN Chat unique user name
 
+  @HiveField(7)
+  late String? lanChatServerAddress; // Manual server address (IP or hostname)
+
+  @HiveField(8)
+  late int lanChatServerPort; // Server port (default 4000)
+
   SettingsModel({
     this.pinCode,
     this.isDarkTheme = false,
@@ -31,6 +37,8 @@ class SettingsModel extends HiveObject {
     this.securityQuestion,
     this.securityAnswer,
     this.userName,
+    this.lanChatServerAddress,
+    this.lanChatServerPort = 4000,
   });
 
   SettingsModel.empty();
@@ -43,6 +51,8 @@ class SettingsModel extends HiveObject {
     String? securityQuestion,
     String? securityAnswer,
     String? userName,
+    String? lanChatServerAddress,
+    int? lanChatServerPort,
   }) {
     return SettingsModel(
       pinCode: pinCode ?? this.pinCode,
@@ -53,6 +63,8 @@ class SettingsModel extends HiveObject {
       securityQuestion: securityQuestion ?? this.securityQuestion,
       securityAnswer: securityAnswer ?? this.securityAnswer,
       userName: userName ?? this.userName,
+      lanChatServerAddress: lanChatServerAddress ?? this.lanChatServerAddress,
+      lanChatServerPort: lanChatServerPort ?? this.lanChatServerPort,
     );
   }
 }
